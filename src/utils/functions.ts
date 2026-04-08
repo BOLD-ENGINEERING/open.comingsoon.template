@@ -61,3 +61,45 @@ export const updateCountdown = () => {
     seconds: String(seconds).padStart(2, '0'),
   }
 }
+
+export type InfluxWritePayload = {
+  measurement: string
+  fields: Record<string, string | number | boolean>
+  tags?: Record<string, string>
+  timestamp?: number | string
+}
+
+export const sendInfluxPoint = async (payload: InfluxWritePayload) => {
+  const response = await fetch('/api/influx/write', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Influx write failed: ${response.statusText}`)
+  }
+
+  return response.json()
+}
+
+export const getLatestInfluxPoint = async (
+  measurement: string,
+  field?: string,
+  range = '-1h',
+) => {
+  const params = new URLSearchParams({
+    measurement,
+    ...(field ? { field } : {}),
+    range,
+  })
+  const response = await fetch(`/api/influx/latest?${params.toString()}`)
+
+  if (!response.ok) {
+    throw new Error(`Influx query failed: ${response.statusText}`)
+  }
+
+  return response.json()
+}

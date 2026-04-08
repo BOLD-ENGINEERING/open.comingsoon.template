@@ -1,11 +1,7 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 
-import Aura from '@primeuix/themes/aura'
 import Nora from '@primeuix/themes/nora'
-import Lara from '@primeuix/themes/lara'
-import Material from '@primeuix/themes/material'
-
 import PrimeVue from 'primevue/config'
 import router from './router'
 import App from './App.vue'
@@ -26,7 +22,7 @@ app.use(PrimeVue, {
       ripple: true,
       cssLayer: false,
       inputVariant: 'filled',
-      darkModeSelector: '.kojo-bio',
+      darkModeSelector: '.bold',
     },
   },
 })

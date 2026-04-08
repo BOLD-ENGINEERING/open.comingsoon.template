@@ -1,12 +1,12 @@
 <script setup lang="ts">
-  import { ref, onMounted } from 'vue';
+  import { ref } from 'vue';
   import { Sun, Moon } from 'lucide-vue-next';
 
   const isDarkMode = ref(false);
 
   function toggleDarkMode() {
     isDarkMode.value = !isDarkMode.value;
-    document.documentElement.classList.toggle('kojo-bio');
+    document.documentElement.classList.toggle('bold');
   }
 
 </script>

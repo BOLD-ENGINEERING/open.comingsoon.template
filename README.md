@@ -13,3 +13,11 @@ A coming soon template built for pre-project announcements with public repositor
 
 - Node >= 24.14.1
 - Bun
+
+## AGENTS.md
+
+For agent context, see [AGENTS.md](./AGENTS.md).
+
+## License
+
+See [LICENSE](./LICENSE).

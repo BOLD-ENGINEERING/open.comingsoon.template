@@ -1,6 +1,6 @@
 import { InfluxDB, Point } from '@influxdata/influxdb-client'
 
-const token = process.env.INFLUXDB_TOKEN
+const token = import.meta.env.INFLUXDB_TOKEN
 const url = import.meta.env.VITE_INFLUXDB_API_URL
 
 const client = new InfluxDB({ url, token })
@@ -12,9 +12,7 @@ const writer = () => {
   const writeClient = client.getWriteApi(org, bucket, 'ns')
 
   for (let i = 0; i < 5; i++) {
-    const point = new Point('measurement1')
-      .tag('tagname1', 'tagvalue1')
-      .intField('field1', i)
+    const point = new Point('measurement1').tag('tagname1', 'tagvalue1').intField('field1', i)
 
     void setTimeout(() => {
       writeClient.writePoint(point)
@@ -48,8 +46,4 @@ const reader = () => {
   })
 }
 
-export {
-  writer,
-  reader
-}
-
+export { writer, reader }

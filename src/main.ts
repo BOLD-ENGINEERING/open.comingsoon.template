@@ -16,7 +16,7 @@ app.use(router)
 
 app.use(PrimeVue, {
   theme: {
-    preset: Nora, // Aura, Material, Lara, Nora
+    preset: Nora,
     options: {
       prefix: 'p',
       ripple: true,

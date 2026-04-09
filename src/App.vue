@@ -1,7 +1,9 @@
+<!-- eslint-disable @typescript-eslint/no-explicit-any -->
 <script setup lang="ts">
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import { Sun, Moon } from 'lucide-vue-next'
+import { onMounted, ref, type Ref } from 'vue'
 import {
   email,
   appName,
@@ -10,20 +12,25 @@ import {
   handleSubmit,
   submitMessage,
   toggleDarkMode,
+  trackSocialClick,
+  queryTemplateData,
 } from '@/utils/functions'
+
+const template: Ref<any[]> = ref([])
+
+onMounted(async () => {
+  const response = await queryTemplateData()
+  template.value = response
+})
+
 </script>
 
 <template>
-  <div
-    class="min-h-screen flex flex-col transition-colors duration-300"
-    :class="{
-      'dark:bg-gray-900 dark:text-gray-100': isDarkMode,
-      'bg-gray-50 text-gray-900': !isDarkMode,
-    }"
-  >
-    <nav
-      class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700"
-    >
+  <div class="min-h-screen flex flex-col transition-colors duration-300" :class="{
+    'dark:bg-gray-900 dark:text-gray-100': isDarkMode,
+    'bg-gray-50 text-gray-900': !isDarkMode,
+  }">
+    <nav class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
       <div class="flex items-center space-x-3">
         <img src="/logo.jpeg" alt="{{ appName }}" class="h-8 w-auto" />
       </div>
@@ -55,36 +62,22 @@ import {
 
         <div class="space-y-6">
           <div class="flex flex-col gap-1 w-full items-center justify-center">
-            <InputText
-              v-model="email"
-              placeholder="Enter your email address"
-              type="email"
+            <InputText v-model="email" placeholder="Enter your email address" type="email"
               class="flex-1 w-full max-w-xl"
               :class="{ 'border-red-500': submitMessage && submitMessage.includes('Please') }"
-              @keyup.enter="handleSubmit"
-            />
-            <Button
-              label="Notify Me"
-              severity="primary"
-              :loading="isSubmitting"
-              @click="handleSubmit"
-              class="w-full max-w-xl cursor-pointer"
-              :class="{ 'cursor-progress': isSubmitting }"
-            />
+              @keyup.enter="handleSubmit" />
+            <Button label="Notify Me" severity="primary" :loading="isSubmitting" @click="handleSubmit"
+              class="w-full max-w-xl cursor-pointer" :class="{ 'cursor-progress': isSubmitting }" />
             <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
               We'll only use your email for project updates. No spam.
             </p>
           </div>
 
-          <p
-            v-if="submitMessage"
-            class="mt-3 text-sm"
-            :class="{
-              'text-green-600': submitMessage.includes('Thanks'),
-              'text-red-600':
-                submitMessage.includes('went wrong') || submitMessage.includes('Please'),
-            }"
-          >
+          <p v-if="submitMessage" class="mt-3 text-sm" :class="{
+            'text-green-600': submitMessage.includes('Thanks'),
+            'text-red-600':
+              submitMessage.includes('went wrong') || submitMessage.includes('Please'),
+          }">
             {{ submitMessage }}
           </p>
         </div>
@@ -92,39 +85,25 @@ import {
     </main>
 
     <footer
-      class="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-6 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400"
-    >
-      <span class="text-center sm:text-left"
-        >&copy; {{ new Date().getFullYear() }} {{ appName }}. All rights reserved.</span
-      >
+      class="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-6 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
+      <span class="text-center sm:text-left">&copy; {{ new Date().getFullYear() }} {{ appName }}. All rights
+        reserved.</span>
 
       <div class="flex justify-center gap-4 sm:gap-8 flex-wrap text-gray-500 dark:text-gray-400">
-        <a
-          href="https://x.com/@openclonne"
-          target="_blank"
-          class="hover:text-primary-600 hover:cursor-pointer hover:underline transition-colors duration-200"
-        >
+        <a href="https://x.com/@openclonne" target="_blank" @click="trackSocialClick('Twitter(X)')"
+          class="hover:text-primary-600 hover:cursor-pointer hover:underline transition-colors duration-200">
           Twitter(X)
         </a>
-        <a
-          href="https://instagram.com/kojo_jeffery"
-          target="_blank"
-          class="hover:text-primary-600 hover:cursor-pointer hover:underline transition-colors duration-200"
-        >
+        <a href="https://instagram.com/kojo_jeffery" target="_blank" @click="trackSocialClick('Instagram')"
+          class="hover:text-primary-600 hover:cursor-pointer hover:underline transition-colors duration-200">
           Instagram
         </a>
-        <a
-          href="https://linkedin.com/in/jeffery-osei"
-          target="_blank"
-          class="hover:text-primary-600 hover:cursor-pointer hover:underline transition-colors duration-200"
-        >
+        <a href="https://linkedin.com/in/jeffery-osei" target="_blank" @click="trackSocialClick('LinkedIn')"
+          class="hover:text-primary-600 hover:cursor-pointer hover:underline transition-colors duration-200">
           LinkedIn
         </a>
-        <a
-          href="https://github.com/BOLD-ENGINEERING"
-          target="_blank"
-          class="hover:text-primary-600 hover:cursor-pointer hover:underline transition-colors duration-200"
-        >
+        <a href="https://github.com/BOLD-ENGINEERING" target="_blank" @click="trackSocialClick('Github')"
+          class="hover:text-primary-600 hover:cursor-pointer hover:underline transition-colors duration-200">
           Github
         </a>
       </div>

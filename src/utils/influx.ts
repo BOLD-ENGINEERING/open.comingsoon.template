@@ -1,7 +1,7 @@
 import { InfluxDB, Point } from '@influxdata/influxdb-client'
 import type { WriteApi, WritePrecisionType } from '@influxdata/influxdb-client'
 
-const INFLUX_TOKEN = import.meta.env.INFLUXDB_TOKEN
+const INFLUX_TOKEN = import.meta.env.VITE_INFLUXDB_TOKEN
 const INFLUX_URL = import.meta.env.VITE_INFLUXDB_API_URL
 const INFLUX_ORG = import.meta.env.VITE_INFLUXDB_ORG
 const INFLUX_BUCKET = import.meta.env.VITE_INFLUXDB_BUCKET

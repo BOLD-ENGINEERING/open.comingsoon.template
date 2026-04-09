@@ -84,22 +84,3 @@ export const sendInfluxPoint = async (payload: InfluxWritePayload) => {
 
   return response.json()
 }
-
-export const getLatestInfluxPoint = async (
-  measurement: string,
-  field?: string,
-  range = '-1h',
-) => {
-  const params = new URLSearchParams({
-    measurement,
-    ...(field ? { field } : {}),
-    range,
-  })
-  const response = await fetch(`/api/influx/latest?${params.toString()}`)
-
-  if (!response.ok) {
-    throw new Error(`Influx query failed: ${response.statusText}`)
-  }
-
-  return response.json()
-}

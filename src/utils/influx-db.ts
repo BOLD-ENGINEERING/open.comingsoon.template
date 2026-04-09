@@ -81,28 +81,6 @@ export class InfluxDbService {
 
     await writeApi.close()
   }
-
-  async queryLatest(
-    measurement: string,
-    field?: string,
-    range = '-1h',
-  ): Promise<Array<Record<string, unknown>>> {
-    const queryApi = this.client.getQueryApi(this.org)
-    const fieldFilter = field ? `|> filter(fn: (r) => r._field == "${field}")` : ''
-    const fluxQuery = `from(bucket: "${this.bucket}")\n  |> range(start: ${range})\n  |> filter(fn: (r) => r._measurement == "${measurement}")\n  ${fieldFilter}\n  |> last()`
-
-    return new Promise<Array<Record<string, unknown>>>((resolve, reject) => {
-      const rows: Array<Record<string, unknown>> = []
-
-      queryApi.queryRows(fluxQuery, {
-        next: (row, tableMeta) => {
-          rows.push(tableMeta.toObject(row))
-        },
-        error: (error) => reject(error),
-        complete: () => resolve(rows),
-      })
-    })
-  }
 }
 
 export const influxDbService = new InfluxDbService()

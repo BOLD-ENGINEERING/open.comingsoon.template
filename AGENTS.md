@@ -1,49 +1,50 @@
 # AGENTS.md
 
-## Execution Methods
+## Architecture
 
-You can run this project either locally or via Docker:
+This is a template-based project with three main components:
+- **Polyfills**: Frontend frameworks in `polyfills/` (e.g., `ivue`, `inext`)
+- **Server**: Express API backend in `server/`
+- **Template**: Configuration in `template.yaml` that selects the active polyfill
 
-**Local (requires Node.js >= 22.22.2 and pnpm):**
+## Execution
 
-- `npm run dev` - Start dev server
-- `npm run build` - Run `type-check` then `build-only`
-- `npm run test:unit` - Run vitest
-- `npm run lint` - Runs both `lint:oxlint` and `lint:eslint` (both with --fix)
-- `npm run format` - Prettier write to src/
-- `npm run type-check` - vue-tsc --build
-- `npm run preview` - Preview production build locally
+All commands run via the `oct` helper script:
+
+**Local Development:**
+- `bash oct dev` - Runs active polyfill + server concurrently (uses concurrently)
+- `bash oct {script}` - Runs any script from polyfill's package.json
+- `bash oct list` - Shows all polyfills, server, and active configuration
+- `bash oct doctor` - Checks dependencies (Node, Bun, Docker, concurrently)
 
 **Docker:**
+- `bash oct docker dev` - Development container with hot reload
+- `bash oct docker prod` - Production container
+- `bash oct docker build` - Build Docker image
 
-- `docker build -t comingsoon .` - Build Docker image
-- `docker-compose up dev` - Start development container with hot reload
-- `docker-compose up web` - Start production container
+## Template Configuration
 
-**Helper Script:**
+Edit `template.yaml` to change the active polyfill:
+```yaml
+polyfill:
+  template: inext  # or ivue, etc.
 
-- `bash oct {command}` - Run npm scripts (e.g., `bash oct dev`)
-- `bash oct docker {command}` - Run Docker commands (e.g., `bash oct docker dev`)
-- `bash oct doctor` - Check system dependencies
-- `bash oct list` - List available npm scripts
-- `bash oct help` - Show help message
+server:
+  store: true
+  telemetry: true
+```
 
-## Tech Stack
+## Requirements
 
-- Vue 3 + TypeScript + Vite (Rolldown)
-- Tailwind v4 with `@tailwindcss/vite` plugin
-- PrimeVue with auto-import resolver
-- Pinia for state management
-- Supabase client (via @supabase/supabase-js)
+- Node.js >= 22.22.2
+- Bun
+- Docker
+- Concurrently (global install: `npm install -g concurrently`)
 
-## Quirks
+## Key Files
 
-- Node >= 22.22.2 required (check engines in package.json)
-- pnpm >= 10.28.0 required (check engines in package.json)
-- Lint runs two tools: `oxlint` then `eslint` (both with --fix)
-- ESLint uses flat config (no `.eslintrc*` file)
-- PrimeVue components auto-imported via `unplugin-vue-components`
-- Alias `@` maps to `src/`
-- Uses `@` alias in templates/styles (not just JS/TS)
-- Supabase integration requires URL/ANON_KEY in environment
-- Built with Rolldown (Vite's new bundler) - check vite.config.ts
+- `template.yaml` - Polyfill and server configuration
+- `oct` - Command helper script
+- `polyfills/` - Frontend framework implementations
+- `server/` - Backend Express API
+- `docker/` - Docker configuration

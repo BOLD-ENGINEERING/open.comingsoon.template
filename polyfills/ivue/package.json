@@ -4,8 +4,7 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22.22.2",
-    "pnpm": ">=10.28.0"
+    "node": ">=22.22.2"
   },
   "scripts": {
     "dev": "vite",
@@ -21,7 +20,7 @@
   "dependencies": {
     "@influxdata/influxdb-client": "^1.35.0",
     "@primeuix/themes": "^1.2.5",
-    "@supabase/supabase-js": "^2.102.1",
+    "@supabase/supabase-js": "^2.103.0",
     "@tailwindcss/vite": "^4.2.2",
     "lucide-vue-next": "^0.535.0",
     "pinia": "^3.0.4",

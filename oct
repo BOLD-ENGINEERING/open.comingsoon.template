@@ -46,18 +46,6 @@ declare -A COMMANDS=(
   ["format"]="prettier --write src/"
 )
 
-declare -A COMMAND_DESCRIPTIONS=(
-  ["dev"]="Start the local Vite development server"
-  ["build"]="Run type checking and build the production bundle"
-  ["preview"]="Preview the built production output locally"
-  ["build-only"]="Build the production bundle without type checking"
-  ["type-check"]="Run Vue type checking"
-  ["lint:oxlint"]="Lint the repo using oxlint"
-  ["lint:eslint"]="Lint the repo using ESLint"
-  ["lint"]="Run both lint tasks"
-  ["format"]="Format source files with Prettier"
-)
-
 show_help() {
   echo "oct - Open.comingsoon Template command helper"
   echo ""

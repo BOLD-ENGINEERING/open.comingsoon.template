@@ -1,4 +1,4 @@
-polyfill: vue
+polyfill: inext
 
 store: true
 telemetry: true

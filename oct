@@ -2,162 +2,233 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEMPLATE_FILE="$SCRIPT_DIR/template.yaml"
+
+load_polyfill() {
+  if [ -f "$TEMPLATE_FILE" ]; then
+    POLYFILL=$(grep "^polyfill:" "$TEMPLATE_FILE" | cut -d' ' -f2- | xargs)
+    if [ -n "$POLYFILL" ] && [ "$POLYFILL" != "null" ]; then
+      echo "$POLYFILL"
+    fi
+  fi
+}
+
+resolve_command() {
+  local cmd="$1"
+  shift
+  
+  POLYFILL=$(load_polyfill)
+  
+  if [ -n "$POLYFILL" ]; then
+    POLYFILL_DIR="$SCRIPT_DIR/polyfills/$POLYFILL"
+    if [ -d "$POLYFILL_DIR" ]; then
+      echo "Using polyfill: $POLYFILL"
+      echo "Running in: $POLYFILL_DIR"
+      echo ""
+      (cd "$POLYFILL_DIR" && bun run --no-env-file "$cmd" "$@")
+      return 0
+    fi
+  fi
+  
+  return 1
+}
+
 declare -A COMMANDS=(
-    ["dev"]="vite"
-    ["build"]="run-p type-check \"build-only {@}\" --"
-    ["preview"]="vite preview"
-    ["build-only"]="vite build"
-    ["type-check"]="vue-tsc --build"
-    ["lint:oxlint"]="oxlint . --fix -D correctness --ignore-path .gitignore"
-    ["lint:eslint"]="eslint . --fix"
-    ["lint"]="run-s lint:*"
-    ["format"]="prettier --write src/"
+  ["dev"]="vite"
+  ["build"]="run-p type-check \"build-only {@}\" --"
+  ["preview"]="vite preview"
+  ["build-only"]="vite build"
+  ["type-check"]="vue-tsc --build"
+  ["lint:oxlint"]="oxlint . --fix -D correctness --ignore-path .gitignore"
+  ["lint:eslint"]="eslint . --fix"
+  ["lint"]="run-s lint:*"
+  ["format"]="prettier --write src/"
 )
 
 declare -A COMMAND_DESCRIPTIONS=(
-    ["dev"]="Start the local Vite development server"
-    ["build"]="Run type checking and build the production bundle"
-    ["preview"]="Preview the built production output locally"
-    ["build-only"]="Build the production bundle without type checking"
-    ["type-check"]="Run Vue type checking"
-    ["lint:oxlint"]="Lint the repo using oxlint"
-    ["lint:eslint"]="Lint the repo using ESLint"
-    ["lint"]="Run both lint tasks"
-    ["format"]="Format source files with Prettier"
+  ["dev"]="Start the local Vite development server"
+  ["build"]="Run type checking and build the production bundle"
+  ["preview"]="Preview the built production output locally"
+  ["build-only"]="Build the production bundle without type checking"
+  ["type-check"]="Run Vue type checking"
+  ["lint:oxlint"]="Lint the repo using oxlint"
+  ["lint:eslint"]="Lint the repo using ESLint"
+  ["lint"]="Run both lint tasks"
+  ["format"]="Format source files with Prettier"
 )
 
-COMMAND_LIST=(dev build preview build-only type-check lint:oxlint lint:eslint lint format)
-
 show_help() {
-    echo "oct - Open.comingsoon Template command helper"
-    echo ""
-    echo "Usage: bash oct <command> [options]"
-    echo ""
-    echo "Local commands (from package.json):"
-    for cmd in "${!COMMANDS[@]}"; do
-        echo "  $cmd"
-    done
-    echo ""
-    echo "Docker commands:"
-    echo "  docker dev        - Start development container with hot reload"
-    echo "  docker web        - Start production container"
-    echo "  docker build      - Build Docker image"
-    echo ""
-    echo "Utility commands:"
-    echo "  doctor            - Check system dependencies"
-    echo "  list              - List available npm scripts"
-    echo "  help              - Show this help message"
-    echo ""
-    echo "Examples:"
-    echo "  bash oct dev                  # Start development server locally"
-    echo "  bash oct docker dev           # Start development container"
-    echo "  bash oct docker web           # Start production container"
-    echo "  bash oct doctor               # Check dependencies"
+  echo "oct - Open.comingsoon Template command helper"
+  echo ""
+  echo "Usage: bash oct <command> [options]"
+  echo ""
+  echo "Local commands:"
+  echo "  Resolved from template.yaml -> polyfills/<name>/package.json"
+  echo ""
+  echo "Docker commands:"
+  echo "  docker dev        - Start development container with hot reload"
+  echo "  docker web        - Start production container"
+  echo "  docker build      - Build Docker image"
+  echo ""
+  echo "Utility commands:"
+  echo "  doctor            - Check system dependencies"
+  echo "  list              - List available npm scripts"
+  echo "  help              - Show this help message"
+  echo ""
+  echo "Examples:"
+  echo "  bash oct dev                  # Start development server (uses polyfill from template.yaml)"
+  echo "  bash oct docker dev           # Start development container"
+  echo "  bash oct docker web           # Start production container"
+  echo "  bash oct doctor               # Check dependencies"
 }
 
 list_scripts() {
-    echo "Available scripts:"
-    for cmd in "${COMMAND_LIST[@]}"; do
-        echo "  $cmd"
-        if [ -n "${COMMAND_DESCRIPTIONS[$cmd]:-}" ]; then
-            echo "    ${COMMAND_DESCRIPTIONS[$cmd]}"
-        fi
-        echo "    Example: bash oct $cmd"
-        echo ""
+  echo "============================================"
+  echo "POLYFILLS"
+  echo "============================================"
+  echo ""
+  
+  if [ -d "$SCRIPT_DIR/polyfills" ]; then
+    for dir in "$SCRIPT_DIR/polyfills"/*/; do
+      if [ -d "$dir" ]; then
+        polyfill_name=$(basename "$dir")
+        echo "  $polyfill_name"
+      fi
     done
+  else
+    echo "  No polyfills directory found"
+  fi
+  
+  echo ""
+  echo "============================================"
+  echo "SERVER (Current Polyfill Scripts)"
+  echo "============================================"
+  echo ""
+  
+  POLYFILL=$(load_polyfill)
+  
+  if [ -n "$POLYFILL" ]; then
+    POLYFILL_DIR="$SCRIPT_DIR/polyfills/$POLYFILL"
+    if [ -f "$POLYFILL_DIR/package.json" ]; then
+      echo "Active: $POLYFILL"
+      echo ""
+      node -e "
+        const pkg = require('$POLYFILL_DIR/package.json');
+        Object.entries(pkg.scripts || {}).forEach(([key, value]) => {
+          console.log('  ' + key + ': ' + value);
+        });
+      "
+    else
+      echo "  Polyfill directory not found: $POLYFILL_DIR"
+    fi
+  else
+    echo "  No polyfill specified in template.yaml"
+  fi
+  
+  echo ""
+  echo "============================================"
+  echo "DOCKER"
+  echo "============================================"
+  echo ""
+  echo "  docker dev:   Start development container with hot reload"
+  echo "  docker web:   Start production container"
+  echo "  docker build: Build Docker image"
+  echo ""
 }
 
 check_dependencies() {
-    echo "Checking system dependencies..."
+  echo "Checking system dependencies..."
 
-    echo "Checking Node.js"
-    if command -v node &> /dev/null; then
-        NODE_VERSION=$(node --version)
-        echo "OK Node.js: $NODE_VERSION"
-    else
-        echo "MISSING Node.js: Not found"
-        echo "  Please install Node.js >= 22.22.0"
-    fi
-    
-    echo "Checking Bun"
-    if command -v bun &> /dev/null; then
-        BUN_VERSION=$(bun --version)
-        echo "OK Bun: $BUN_VERSION"
-    else
-        echo "MISSING Bun: Not found"
-        echo "  Please install Bun (https://bun.sh)"
-    fi
-    
-    echo "Checking Docker"
-    if command -v docker &> /dev/null; then
-        DOCKER_VERSION=$(docker --version)
-        echo "OK Docker: $DOCKER_VERSION"
-    else
-        echo "MISSING Docker: Not found"
-        echo "  Please install Docker (https://docker.com)"
-    fi
-    
-    if [ -f "package.json" ]; then
-        echo "OK package.json: Found"
-    else
-        echo "MISSING package.json: Not found in current directory"
-    fi
-    
-    echo ""
-    echo "Dependency check complete."
+  echo "Checking Node.js"
+  if command -v node &> /dev/null; then
+    NODE_VERSION=$(node --version)
+    echo "OK Node.js: $NODE_VERSION"
+  else
+    echo "MISSING Node.js: Not found"
+    echo "  Please install Node.js >= 22.22.0"
+  fi
+  
+  echo "Checking Bun"
+  if command -v bun &> /dev/null; then
+    BUN_VERSION=$(bun --version)
+    echo "OK Bun: $BUN_VERSION"
+  else
+    echo "MISSING Bun: Not found"
+    echo "  Please install Bun (https://bun.sh)"
+  fi
+  
+  echo "Checking Docker"
+  if command -v docker &> /dev/null; then
+    DOCKER_VERSION=$(docker --version)
+    echo "OK Docker: $DOCKER_VERSION"
+  else
+    echo "MISSING Docker: Not found"
+    echo "  Please install Docker (https://docker.com)"
+  fi
+  
+  POLYFILL=$(load_polyfill)
+  if [ -n "$POLYFILL" ]; then
+    echo "OK Polyfill: $POLYFILL (from template.yaml)"
+  else
+    echo "WARN Polyfill: Not specified in template.yaml"
+  fi
+  
+  echo ""
+  echo "Dependency check complete."
 }
 
 if [ $# -eq 0 ]; then
-    show_help
-    exit 0
+  show_help
+  exit 0
 fi
 
 COMMAND="$1"
 shift || true
 
 case "$COMMAND" in
-    help)
-        show_help
+  help)
+    show_help
+    ;;
+  list)
+    list_scripts
+    ;;
+  doctor)
+    check_dependencies
+    ;;
+  docker)
+    DOCKER_SUBCOMMAND="$1"
+    shift || true
+    
+    case "$DOCKER_SUBCOMMAND" in
+      dev)
+        docker-compose up dev "$@"
         ;;
-    list)
-        list_scripts
+      web)
+        docker-compose up web "$@"
         ;;
-    doctor)
-        check_dependencies
+      build)
+        docker build -t comingsoon . "$@"
         ;;
-    docker)
-        DOCKER_SUBCOMMAND="$1"
-        shift || true
-        
-        case "$DOCKER_SUBCOMMAND" in
-            dev)
-                docker-compose up dev "$@"
-                ;;
-            web)
-                docker-compose up web "$@"
-                ;;
-            build)
-                docker build -t comingsoon . "$@"
-                ;;
-            *)
-                echo "Error: Unknown Docker subcommand '$DOCKER_SUBCOMMAND'"
-                echo ""
-                echo "Available Docker subcommands:"
-                echo "  dev     - Start development container with hot reload"
-                echo "  web     - Start production container"
-                echo "  build   - Build Docker image"
-                exit 1
-                ;;
-        esac
+      *)
+        echo "Error: Unknown Docker subcommand '$DOCKER_SUBCOMMAND'"
+        echo ""
+        echo "Available Docker subcommands:"
+        echo "  dev     - Start development container with hot reload"
+        echo "  web     - Start production container"
+        echo "  build   - Build Docker image"
+        exit 1
         ;;
-    *)
-        if [[ -n "${COMMANDS[$COMMAND]:-}" ]]; then
-            bun run --no-env-file "$COMMAND" "$@"
-        else
-            echo "Error: Unknown command '$COMMAND'"
-            echo ""
-            show_help
-            exit 1
-        fi
-        ;;
+    esac
+    ;;
+  *)
+  if [[ -n "${COMMANDS[$COMMAND]:-}" ]]; then
+    resolve_command "$COMMAND" "$@"
+  else
+    echo "Error: Unknown command '$COMMAND'"
+    echo ""
+    show_help
+    exit 1
+  fi
+  ;;
 esac

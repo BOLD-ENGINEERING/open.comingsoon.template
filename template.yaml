@@ -1,4 +1,6 @@
-polyfill: inext
+polyfill:
+  template: inext
 
-store: true
-telemetry: true
+server:
+  store: true
+  telemetry: true

@@ -7,11 +7,83 @@ TEMPLATE_FILE="$SCRIPT_DIR/template.yaml"
 
 load_polyfill() {
   if [ -f "$TEMPLATE_FILE" ]; then
-    POLYFILL=$(grep "^polyfill:" "$TEMPLATE_FILE" | cut -d' ' -f2- | xargs)
+    if grep -q "^polyfill:" "$TEMPLATE_FILE" && grep -A1 "^polyfill:" "$TEMPLATE_FILE" | grep -q "template:"; then
+      POLYFILL=$(sed -n '/^polyfill:/,/^[a-z]/ { /template:/s/.*template:[[:space:]]*//p }' "$TEMPLATE_FILE" | xargs)
+    else
+      POLYFILL=$(grep "^polyfill:" "$TEMPLATE_FILE" | sed 's/polyfill:[[:space:]]*//' | xargs)
+    fi
+    
     if [ -n "$POLYFILL" ] && [ "$POLYFILL" != "null" ]; then
       echo "$POLYFILL"
     fi
   fi
+}
+
+load_server_config() {
+  if [ -f "$TEMPLATE_FILE" ]; then
+    if grep -q "^server:" "$TEMPLATE_FILE"; then
+      echo "Server configuration found in template.yaml"
+      echo ""
+      echo "Settings:"
+      grep -A3 "^server:" "$TEMPLATE_FILE" | grep -E "^\s+[a-z]+:" | sed 's/^/  /'
+    fi
+  fi
+}
+
+get_polyfill_scripts() {
+  local polyfill="$1"
+  local polyfill_dir="$SCRIPT_DIR/polyfills/$polyfill"
+  
+  if [ -f "$polyfill_dir/package.json" ]; then
+    node -e "
+      const pkg = require('$polyfill_dir/package.json');
+      Object.entries(pkg.scripts || {}).forEach(([key, value]) => {
+        console.log('    ' + key + ': ' + value);
+      });
+    "
+  fi
+}
+
+get_server_scripts() {
+  local server_dir="$SCRIPT_DIR/server"
+  
+  if [ -f "$server_dir/package.json" ]; then
+    node -e "
+      const pkg = require('$server_dir/package.json');
+      Object.entries(pkg.scripts || {}).forEach(([key, value]) => {
+        console.log('    ' + key + ': ' + value);
+      });
+    "
+  fi
+}
+
+get_valid_commands() {
+  POLYFILL=$(load_polyfill)
+  
+  if [ -n "$POLYFILL" ]; then
+    POLYFILL_DIR="$SCRIPT_DIR/polyfills/$POLYFILL"
+    if [ -f "$POLYFILL_DIR/package.json" ]; then
+      node -e "
+        const pkg = require('$POLYFILL_DIR/package.json');
+        console.log(Object.keys(pkg.scripts || {}).join(' '));
+      "
+      return 0
+    fi
+  fi
+  return 1
+}
+
+is_valid_command() {
+  local cmd="$1"
+  local valid_cmds
+  valid_cmds=$(get_valid_commands)
+  
+  for valid_cmd in $valid_cmds; do
+    if [ "$valid_cmd" = "$cmd" ]; then
+      return 0
+    fi
+  done
+  return 1
 }
 
 resolve_command() {
@@ -22,11 +94,19 @@ resolve_command() {
   
   if [ -n "$POLYFILL" ]; then
     POLYFILL_DIR="$SCRIPT_DIR/polyfills/$POLYFILL"
+    SERVER_DIR="$SCRIPT_DIR/server"
+    
     if [ -d "$POLYFILL_DIR" ]; then
-      echo "Using polyfill: $POLYFILL"
-      echo "Running in: $POLYFILL_DIR"
+      echo "============================================"
+      echo "Starting $POLYFILL + server concurrently..."
+      echo "============================================"
       echo ""
-      (cd "$POLYFILL_DIR" && bun run --no-env-file "$cmd" "$@")
+      
+      concurrently \
+        --names "server,$POLYFILL" \
+        --prefix-colors "blue,green" \
+        "cd $SERVER_DIR && bun run index.ts" \
+        "cd $POLYFILL_DIR && bun run --no-env-file $cmd $@"
       return 0
     fi
   fi
@@ -34,41 +114,30 @@ resolve_command() {
   return 1
 }
 
-declare -A COMMANDS=(
-  ["dev"]="vite"
-  ["build"]="run-p type-check \"build-only {@}\" --"
-  ["preview"]="vite preview"
-  ["build-only"]="vite build"
-  ["type-check"]="vue-tsc --build"
-  ["lint:oxlint"]="oxlint . --fix -D correctness --ignore-path .gitignore"
-  ["lint:eslint"]="eslint . --fix"
-  ["lint"]="run-s lint:*"
-  ["format"]="prettier --write src/"
-)
-
 show_help() {
   echo "oct - Open.comingsoon Template command helper"
   echo ""
   echo "Usage: bash oct <command> [options]"
   echo ""
   echo "Local commands:"
-  echo "  Resolved from template.yaml -> polyfills/<name>/package.json"
+  echo "  Resolved from template.yaml -> polyfills/<name>/"
+  echo "  Server runs concurrently with polyfill"
+  echo "  Run 'bash oct list' to see all available commands"
   echo ""
   echo "Docker commands:"
   echo "  docker dev        - Start development container with hot reload"
-  echo "  docker web        - Start production container"
+  echo "  docker prod        - Start production container"
   echo "  docker build      - Build Docker image"
   echo ""
   echo "Utility commands:"
   echo "  doctor            - Check system dependencies"
-  echo "  list              - List available npm scripts"
+  echo "  list              - List all polyfills, server, and commands"
   echo "  help              - Show this help message"
   echo ""
   echo "Examples:"
-  echo "  bash oct dev                  # Start development server (uses polyfill from template.yaml)"
-  echo "  bash oct docker dev           # Start development container"
-  echo "  bash oct docker web           # Start production container"
-  echo "  bash oct doctor               # Check dependencies"
+  echo "  bash oct dev      - Start polyfill + server concurrently"
+  echo "  bash oct docker dev    - Start development container"
+  echo "  bash oct doctor       - Check dependencies"
 }
 
 list_scripts() {
@@ -76,51 +145,70 @@ list_scripts() {
   echo "POLYFILLS"
   echo "============================================"
   echo ""
+  echo "Available polyfill frameworks (set via template.yaml):"
+  echo ""
   
   if [ -d "$SCRIPT_DIR/polyfills" ]; then
     for dir in "$SCRIPT_DIR/polyfills"/*/; do
       if [ -d "$dir" ]; then
         polyfill_name=$(basename "$dir")
+        
+        if [ -f "$dir/package.json" ]; then
+          description=$(node -e "console.log(require('$dir/package.json').description || 'No description')" 2>/dev/null || echo "No description")
+        else
+          description="No description"
+        fi
+        
         echo "  $polyfill_name"
+        echo "    Description: $description"
+        echo "    How to run: bash oct <command> (e.g., bash oct dev)"
+        echo "    Commands:"
+        get_polyfill_scripts "$polyfill_name"
+        echo ""
       fi
     done
   else
     echo "  No polyfills directory found"
   fi
   
-  echo ""
   echo "============================================"
-  echo "SERVER (Current Polyfill Scripts)"
+  echo "SERVER"
+  echo "============================================"
+  echo ""
+  echo "Backend API server (runs concurrently with polyfills)"
+  echo ""
+  echo "  server"
+  echo "    Description: Express API server for the coming soon template"
+  echo "    How to run: Runs automatically with polyfill commands (e.g., bash oct dev)"
+  echo "    Commands:"
+  get_server_scripts
+  echo ""
+  
+  echo "============================================"
+  echo "ACTIVE CONFIGURATION"
   echo "============================================"
   echo ""
   
   POLYFILL=$(load_polyfill)
   
   if [ -n "$POLYFILL" ]; then
-    POLYFILL_DIR="$SCRIPT_DIR/polyfills/$POLYFILL"
-    if [ -f "$POLYFILL_DIR/package.json" ]; then
-      echo "Active: $POLYFILL"
-      echo ""
-      node -e "
-        const pkg = require('$POLYFILL_DIR/package.json');
-        Object.entries(pkg.scripts || {}).forEach(([key, value]) => {
-          console.log('  ' + key + ': ' + value);
-        });
-      "
-    else
-      echo "  Polyfill directory not found: $POLYFILL_DIR"
-    fi
+    echo "  Active polyfill: $POLYFILL"
+    echo "  Running 'bash oct dev' will start:"
+    echo "    1. server (Express API)"
+    echo "    2. polyfills/$POLYFILL"
+    echo ""
   else
     echo "  No polyfill specified in template.yaml"
+    echo "  Update template.yaml to set a polyfill"
+    echo ""
   fi
   
-  echo ""
   echo "============================================"
   echo "DOCKER"
   echo "============================================"
   echo ""
   echo "  docker dev:   Start development container with hot reload"
-  echo "  docker web:   Start production container"
+  echo "  docker prod:  Start production container"
   echo "  docker build: Build Docker image"
   echo ""
 }
@@ -153,6 +241,15 @@ check_dependencies() {
   else
     echo "MISSING Docker: Not found"
     echo "  Please install Docker (https://docker.com)"
+  fi
+  
+  echo "Checking Concurrently"
+  if command -v concurrently &> /dev/null; then
+    CONCURRENTLY_VERSION=$(concurrently --version 2>/dev/null | head -1 || echo "installed")
+    echo "OK Concurrently: $CONCURRENTLY_VERSION"
+  else
+    echo "MISSING Concurrently: Not found"
+    echo "  Please install globally: npm install -g concurrently"
   fi
   
   POLYFILL=$(load_polyfill)
@@ -188,34 +285,34 @@ case "$COMMAND" in
     DOCKER_SUBCOMMAND="$1"
     shift || true
     
-    case "$DOCKER_SUBCOMMAND" in
-      dev)
-        docker-compose up dev "$@"
-        ;;
-      web)
-        docker-compose up web "$@"
-        ;;
-      build)
-        docker build -t comingsoon . "$@"
-        ;;
-      *)
-        echo "Error: Unknown Docker subcommand '$DOCKER_SUBCOMMAND'"
-        echo ""
-        echo "Available Docker subcommands:"
-        echo "  dev     - Start development container with hot reload"
-        echo "  web     - Start production container"
-        echo "  build   - Build Docker image"
-        exit 1
-        ;;
-    esac
+      case "$DOCKER_SUBCOMMAND" in
+        dev)
+          docker-compose up dev "$@"
+          ;;
+        prod)
+          docker-compose up prod "$@"
+          ;;
+        build)
+          docker build -t comingsoon . "$@"
+          ;;
+        *)
+          echo "Error: Unknown Docker subcommand '$DOCKER_SUBCOMMAND'"
+          echo ""
+          echo "Available Docker subcommands:"
+          echo "  dev     - Start development container with hot reload"
+          echo "  prod    - Start production container"
+          echo "  build   - Build Docker image"
+          exit 1
+          ;;
+      esac
     ;;
   *)
-  if [[ -n "${COMMANDS[$COMMAND]:-}" ]]; then
+  if is_valid_command "$COMMAND"; then
     resolve_command "$COMMAND" "$@"
   else
     echo "Error: Unknown command '$COMMAND'"
     echo ""
-    show_help
+    echo "Run 'bash oct list' to see available commands for current polyfill"
     exit 1
   fi
   ;;

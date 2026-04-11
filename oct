@@ -4,6 +4,14 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_FILE="$SCRIPT_DIR/template.yaml"
+BANNER_FILE="$SCRIPT_DIR/banner.txt"
+
+show_banner() {
+  if [ -f "$BANNER_FILE" ]; then
+    cat "$BANNER_FILE"
+    echo ""
+  fi
+}
 
 load_polyfill() {
   if [ -f "$TEMPLATE_FILE" ]; then
@@ -264,12 +272,15 @@ check_dependencies() {
 }
 
 if [ $# -eq 0 ]; then
+  show_banner
   show_help
   exit 0
 fi
 
 COMMAND="$1"
 shift || true
+
+show_banner
 
 case "$COMMAND" in
   help)

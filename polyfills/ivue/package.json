@@ -18,6 +18,8 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "@chenglou/pretext": "^0.0.5",
+    "@hashintel/refractive": "^0.0.3",
     "@influxdata/influxdb-client": "^1.35.0",
     "@primeuix/themes": "^1.2.5",
     "@supabase/supabase-js": "^2.103.0",

@@ -6,6 +6,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_FILE="$SCRIPT_DIR/template.yaml"
 BANNER_FILE="$SCRIPT_DIR/banner.txt"
 
+echo $SCRIPT_DIR;
+exit;
+
 show_banner() {
   if [ -f "$BANNER_FILE" ]; then
     cat "$BANNER_FILE"
@@ -15,11 +18,7 @@ show_banner() {
 
 load_polyfill() {
   if [ -f "$TEMPLATE_FILE" ]; then
-    if grep -q "^polyfill:" "$TEMPLATE_FILE" && grep -A1 "^polyfill:" "$TEMPLATE_FILE" | grep -q "template:"; then
-      POLYFILL=$(sed -n '/^polyfill:/,/^[a-z]/ { /template:/s/.*template:[[:space:]]*//p }' "$TEMPLATE_FILE" | xargs)
-    else
-      POLYFILL=$(grep "^polyfill:" "$TEMPLATE_FILE" | sed 's/polyfill:[[:space:]]*//' | xargs)
-    fi
+    POLYFILL=$(grep "^polyfill:" "$TEMPLATE_FILE" | sed 's/polyfill:[[:space:]]*//' | xargs)
     
     if [ -n "$POLYFILL" ] && [ "$POLYFILL" != "null" ]; then
       echo "$POLYFILL"
@@ -123,7 +122,7 @@ resolve_command() {
 }
 
 show_help() {
-  echo "oct - Open.comingsoon Template command helper"
+  echo "oct - open.comingsoon.template command helper"
   echo ""
   echo "Usage: bash oct <command> [options]"
   echo ""
